@@ -215,10 +215,14 @@
 		var moved = false,
 			touchX,
 			touchY,
+			multiTouch = false,
 			startOrientation = 0;
 
 		window.addEventListener('touchstart', function (evt) {
-			if (!moved && evt.touches.length > 1 &&
+			if (evt.touches.length > 1) {
+				multiTouch = true;
+			}
+			if (!moved && multiTouch &&
 					connection && connection.open) {
 
 				connection.send({
@@ -261,19 +265,18 @@
 
 		window.addEventListener('touchend', function (evt) {
 			if (!evt.touches.length) {
-				if (!moved && connection) {
+				if (!moved && !multiTouch && connection && connection.open) {
 					connection.send({
 						action: 'click'
 					});
-				}
-
-				if (moved && connection && connection.open) {
+				} else if (moved && connection && connection.open) {
 					connection.send({
 						action: 'stop'
 					});
 				}
 
 				moved = false;
+				multiTouch = false;
 			}
 		}, true);
 
