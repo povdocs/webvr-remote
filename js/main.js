@@ -295,7 +295,8 @@
 			statsCanvas;
 
 		function getBoundingBox(node) {
-			var boundingBox;
+			var boundingBox,
+				position = new THREE.Vector3();
 
 			node.traverse(function (child) {
 				var box;
@@ -314,6 +315,10 @@
 					return;
 				}
 
+				position.set(0, 0, 0);
+				child.localToWorld(position);
+				box.translate(position);
+
 				if (boundingBox) {
 					boundingBox.union(box);
 				} else {
@@ -331,9 +336,7 @@
 			object.children.forEach(function (node) {
 				node.position.sub(center);
 			});
-
-			center = getBoundingBox(object).center();
-			console.log('center', center);
+			object.updateMatrixWorld();
 		}
 
 		function resize() {
@@ -439,8 +442,10 @@
 
 		loader = new THREE.OBJMTLLoader();
 		loader.load( 'models/skull.obj', 'models/skull.mtl', function ( object ) {
+			recenterCompoundObject(object);
+			object.position.y = initialCameraPosition.y;
+
 			object.position.z = 4;
-			object.position.y = 1;
 			object.position.x = 2;
 			object.scale.set(0.2, 0.2, 0.2);
 			object.rotateY(Math.PI);
@@ -450,8 +455,10 @@
 		});
 
 		loader.load( 'models/cow.obj', 'models/cow.mtl', function ( object ) {
+			recenterCompoundObject(object);
+			object.position.y = initialCameraPosition.y;
+
 			object.position.z = 4;
-			object.position.y = 2;
 			object.position.x = -2;
 			object.scale.set(1.2, 1.2, 1.2);
 			object.rotateY(Math.PI);
@@ -463,16 +470,8 @@
 		loader = new THREE.UTF8Loader();
 
 		loader.load('models/hand.js', function (object) {
-			var s = 4;
-
-			recenterCompoundObject(object);
-
-			object.scale.set(s, s, s);
-			object.position.z = 10;
-			//object.position.y = -125;
-			scene.add(object);
-			objects.push(object);
-			pickTargets.push(object);
+			var s = 4,
+				removables = [];
 
 			object.traverse(function(node) {
 
@@ -482,9 +481,28 @@
 				if (node.material && node.material.name === 'skin') {
 					node.material.wrapAround = true;
 					node.material.wrapRGB.set( 0.6, 0.2, 0.1 );
+				} else if (!node.material || node.material.name !== 'nails') {
+					console.log(node.material);
+					if (!node.children.length) {
+						removables.push(node);
+					}
 				}
 
 			});
+
+			removables.forEach(function (node) {
+				node.parent.remove(node);
+			});
+
+			recenterCompoundObject(object);
+			object.position.y = initialCameraPosition.y;
+
+			object.scale.set(s, s, s);
+			object.position.z = 10;
+
+			scene.add(object);
+			objects.push(object);
+			pickTargets.push(object);
 
 		}, {
 			normalizeRGB: true
