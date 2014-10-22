@@ -37,7 +37,8 @@ THREE.VRControls = function ( object ) {
 		window.removeEventListener( 'deviceorientation', deviceOrientationChange, false );
 		deviceControls = new THREE.DeviceOrientationControls( object );
 		deviceControls.connect();
-		if (!this.freeze) {
+		if (!this.freeze && deviceControls.deviceOrientation.gamma !== undefined) {
+			mode = 'deviceorientation';
 			deviceControls.update();
 		}
 	}
@@ -55,7 +56,7 @@ THREE.VRControls = function ( object ) {
 				object.position.copy( vrState.position );
 				object.updateMatrixWorld();
 			}
-		} else if (deviceControls) {
+		} else if (deviceControls && deviceControls.deviceOrientation.gamma !== undefined) {
 			deviceControls.update();
 			object.rotateY(-zeroAngle);
 			object.updateMatrixWorld();
@@ -95,6 +96,5 @@ THREE.VRControls = function ( object ) {
 	} else if ( 'DeviceOrientationEvent' in window && THREE.DeviceOrientationControls) {
 		//device orientation
 		window.addEventListener( 'deviceorientation', deviceOrientationChange, false );
-		mode = 'deviceorientation';
 	}
 };
