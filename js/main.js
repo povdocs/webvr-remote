@@ -547,7 +547,8 @@
 
 	function initPeer(id) {
 		var peer,
-			peerId;
+			peerId,
+			qrCode;
 
 		peer = new Peer(id, {
 			key: PEER_API_KEY
@@ -566,13 +567,16 @@
 
 		peer.on('close', function () {
 			console.log('peer closed');
+			if (qrCode) {
+				qrCode.clear();
+				qrCode = null;
+			}
 		});
 
 		peer.on('open', function (id) {
 			var url,
 				location = window.location,
-				path,
-				qrCode;
+				path;
 
 			peerId = id;
 			path = location.pathname.split('/');
@@ -581,12 +585,16 @@
 			document.getElementById('link').textContent = url;
 			window.location.hash = id;
 
-			qrCode = new QRCode('qrcode', {
-				text: url,
-				width: 200,
-				height: 200,
-				correctLevel: QRCode.CorrectLevel.L
-			});
+			if (!qrCode) {
+				qrCode = new QRCode('qrcode', {
+					text: url,
+					width: 200,
+					height: 200,
+					correctLevel: QRCode.CorrectLevel.L
+				});
+			} else {
+				qrCode.makeImage(url);
+			}
 		});
 
 		peer.on('connection', function (conn) {
