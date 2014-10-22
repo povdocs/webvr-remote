@@ -15,6 +15,7 @@
 		statusObject,
 
 		connection,
+		qrCode,
 
 		camera,
 		head,
@@ -547,8 +548,7 @@
 
 	function initPeer(id) {
 		var peer,
-			peerId,
-			qrCode;
+			peerId;
 
 		peer = new Peer(id, {
 			key: PEER_API_KEY
@@ -557,7 +557,11 @@
 		peer.on('error', function (err) {
 			console.log('peer error', err);
 
-			//todo: clean out qr code and start over
+			//clean out qr code and start over
+			if (qrCode) {
+				qrCode.clear();
+			}
+
 			initPeer();
 		});
 
@@ -569,7 +573,6 @@
 			console.log('peer closed');
 			if (qrCode) {
 				qrCode.clear();
-				qrCode = null;
 			}
 		});
 
