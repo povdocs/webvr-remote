@@ -525,6 +525,12 @@
 				recenterPointer();
 			}
 		}, 1);
+		window.addEventListener('deviceorientation', function deviceOrientation(event) {
+			if (typeof event.gamma === 'number') {
+				vrButton.disabled = false;
+			}
+			window.removeEventListener('deviceorientation', deviceOrientation, false);
+		}, false);
 
 		window.addEventListener('keydown', function (evt) {
 			console.log('keydown', evt.keyCode);

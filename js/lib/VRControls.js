@@ -34,12 +34,14 @@ THREE.VRControls = function ( object ) {
 	}
 
 	function deviceOrientationChange( event ) {
-		window.removeEventListener( 'deviceorientation', deviceOrientationChange, false );
-		deviceControls = new THREE.DeviceOrientationControls( object );
-		deviceControls.connect();
-		if (!this.freeze && deviceControls.deviceOrientation.gamma !== undefined) {
+		if ( typeof event.gamma === 'number' ) {
 			mode = 'deviceorientation';
-			deviceControls.update();
+			window.removeEventListener( 'deviceorientation', deviceOrientationChange, false );
+			deviceControls = new THREE.DeviceOrientationControls( object );
+			deviceControls.connect();
+			if (!this.freeze) {
+				deviceControls.update();
+			}
 		}
 	}
 
@@ -93,8 +95,8 @@ THREE.VRControls = function ( object ) {
 		navigator.getVRDevices().then( gotVRDevices );
 	} else if ( navigator.mozGetVRDevices ) {
 		navigator.mozGetVRDevices( gotVRDevices );
-	} else if ( 'DeviceOrientationEvent' in window && THREE.DeviceOrientationControls) {
+	} else if ( "DeviceOrientationEvent" in window && THREE.DeviceOrientationControls) {
 		//device orientation
-		window.addEventListener( 'deviceorientation', deviceOrientationChange, false );
+		window.addEventListener( "deviceorientation", deviceOrientationChange, false );
 	}
 };
