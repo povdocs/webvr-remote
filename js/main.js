@@ -8,7 +8,7 @@
 		PEER_API_KEY = 'evy8rcz8vdy22o6r',
 		FOG = 250,
 		MOVE_SPEED = 10,
-		SLOW_SPEED = MOVE_SPEED * 0.7,
+		SLOW_SPEED = MOVE_SPEED * 0.2,
 		CHECKERBOARD = 'images/checkerboard.png',
 
 		statusExpire = 0,
@@ -61,25 +61,50 @@
 		var delta,
 			x,
 			z,
-			adjustedZ,
-			adjustedX,
 			cos,
-			sin;
+			sin,
+			speed = SLOW_SPEED,
+			length,
+			moveLongitude,
+			cameraLon,
+			vector;
 
 		delta = clock.getDelta();
 		if (moving) {
 
-			adjustedZ = delta * (moveZ > 0 ? MOVE_SPEED * moveZ : SLOW_SPEED * moveZ);
-			adjustedX = delta * SLOW_SPEED * moveX;
-
 			cos = Math.cos(pointerLon);
 			sin = Math.sin(pointerLon);
 
-			z = cos * adjustedZ - sin * adjustedX;
-			x = sin * adjustedZ + cos * adjustedX;
+			z = cos * moveZ - sin * moveX;
+			x = sin * moveZ + cos * moveX;
 
-			head.position.z += z;
-			head.position.x += x;
+			//normalize for calculating longitude of movement vector
+			length = Math.sqrt(x * x + z * z);
+			moveLongitude = Math.acos(z / length);
+			if (x < 0) {
+				moveLongitude *= -1;
+			}
+
+			vector = new THREE.Vector3(0, 0, 1);
+			vector.applyQuaternion(camera.quaternion);
+			vector.normalize();
+
+			cos = Math.cos(Math.asin(vector.y));
+			if (cos) {
+				cameraLon = Math.acos(vector.z / cos);
+				if (vector.x < 0) {
+					cameraLon *= -1;
+				}
+
+				//slow down if you're not moving in the direction you're looking
+				//so you don't puke
+
+				speed = SLOW_SPEED + (MOVE_SPEED - SLOW_SPEED) * Math.pow(1 - Math.abs(moveLongitude - cameraLon) / Math.PI, 2);
+			}
+
+
+			head.position.z += z * delta * speed;
+			head.position.x += x * delta * speed;
 
 			updatePointer();
 		}
@@ -293,7 +318,10 @@
 			frames,
 			statsTex,
 			ctx,
-			statsCanvas;
+			statsCanvas,
+
+			requestPointerLock,
+			exitPointerLock;
 
 		function getBoundingBox(node) {
 			var boundingBox,
@@ -395,11 +423,29 @@
 		vrControls = new THREE.VRControls( camera );
 		//vrControls.freeze = true;
 
+		requestFullscreen = renderer.domElement.webkitRequestFullscreen ||
+			renderer.domElement.mozRequestFullScreen ||
+			renderer.domElement.msRequestFullscreen;
+		requestFullscreen = requestFullscreen.bind(renderer.domElement);
+
+		requestPointerLock = (renderer.domElement.requestPointerLock ||
+			renderer.domElement.mozRequestPointerLock ||
+			renderer.domElement.webkitRequestPointerLock).bind(renderer.domElement);
+		exitPointerLock = (document.exitPointerLock ||
+			document.mozExitPointerLock ||
+			document.webkitExitPointerLock).bind(document);
+
 		vrEffect = new THREE.VRStereoEffect(renderer);
 		vrEffect.addEventListener('fullscreenchange', function () {
 			vrControls.freeze = !(vrControls.mode() || vrEffect.vrPreview());
 			if (vrControls.freeze) {
 				vrControls.reset();
+			}
+
+			if (vrEffect.isFullscreen()) {
+				requestPointerLock();
+			} else {
+				exitPointerLock();
 			}
 		});
 
@@ -522,12 +568,6 @@
 		scene.add(pointer);
 
 		render();
-
-
-		requestFullscreen = renderer.domElement.webkitRequestFullscreen ||
-			renderer.domElement.mozRequestFullScreen ||
-			renderer.domElement.msRequestFullscreen;
-		requestFullscreen = requestFullscreen.bind(renderer.domElement);
 
 		fsButton = document.getElementById('fs');
 		fsButton.addEventListener('click', requestFullscreen, false);

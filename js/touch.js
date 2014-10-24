@@ -51,14 +51,12 @@
 			connection = peer.connect(peerId);
 
 			connection.on('data', function(data){
-				console.log(data);
 				if (data.action === 'hover') {
 					if (navigator.vibrate) {
 						navigator.vibrate(20);
 					}
 				} else if (data.action === 'pong' && data.pingId === pingId) {
 					console.log('pong', (performance.now() - pingTime) / 2);
-					//setTimeout(ping, 1000);
 				}
 			});
 
