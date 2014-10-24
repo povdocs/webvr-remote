@@ -262,6 +262,7 @@
 				}
 
 				updatePointer();
+				console.log('recentered');
 			}
 		};
 
@@ -566,7 +567,8 @@
 
 	function initPeer(id) {
 		var peer,
-			peerId;
+			peerId,
+			connectionInfo = document.getElementById('connection-info');
 
 		peer = new Peer(id, {
 			key: PEER_API_KEY
@@ -603,7 +605,8 @@
 			path = location.pathname.split('/');
 			path.pop();
 			url = location.origin + path.join('/') + '/touch.html#' + peerId;
-			document.getElementById('link').textContent = url;
+			document.getElementById('link').setAttribute('href', url);
+			connectionInfo.style.display = '';
 			window.location.hash = id;
 
 			if (!qrCode) {
@@ -632,7 +635,7 @@
 			console.log('Connection open', conn.peer);
 
 			//hide connection-info
-			document.getElementById('connection-info').style.display = 'none';
+			connectionInfo.style.display = 'none';
 
 			connection.on('data', function (data){
 				if (data.action === 'orientation') {
@@ -672,11 +675,17 @@
 
 			connection.on('error', function (err){
 				console.log('connection error', err);
+				if (peer && peer.open) {
+					connectionInfo.style.display = '';
+				}
 			});
 
 			connection.on('close', function (){
 				console.log('connection closed');
 				connection = null;
+				if (peer && peer.open) {
+					connectionInfo.style.display = '';
+				}
 			});
 		});
 	}

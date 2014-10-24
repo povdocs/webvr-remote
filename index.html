@@ -93,10 +93,10 @@
 				z-index: 100;
 				position: absolute;
 				width: 280px;
-				height: 300px;
-				top: 50%;
-				left: 50%;
-				margin: -140px 0 0 -150px;
+				height: 280px;
+				bottom: 0;
+				right: 0;
+				margin: 10px;
 				border: rgba(100, 100, 100, 0.6) solid 2px;
 			}
 
@@ -137,9 +137,8 @@
 				<p>Code by <a href="http://chirls.com">Brian Chirls</a> is available on <a href="https://github.com/povdocs/webvr-mouse/">GitHub</a>.</p>
 			</article>
 		</div>
-		<div id="connection-info">
-			<div id="qrcode"></div>
-			<div id="link"></div>
+		<div id="connection-info" style="display: none;">
+			<a id="link" target="_blank"><div id="qrcode"></div></a>
 		</div>
 		<script src="js/lib/three.js"></script>
 		<script src="js/lib/DeviceOrientationControls.js"></script>
