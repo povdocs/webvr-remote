@@ -1,4 +1,4 @@
-# WebVR Mouse Control
+# WebVR Remote Control
 
 [View Demo](http://povdocs.github.io/webvr-remote)
 
