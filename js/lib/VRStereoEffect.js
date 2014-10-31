@@ -134,7 +134,9 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 
 		for (i = 0; i < devices.length; i++) {
 			device = devices[i];
-			if (device instanceof HMDVRDevice) {
+			if (device instanceof HMDVRDevice &&
+					(!hmdDevice || devices[i].hardwareUnitId !== hmdDevice.hardwareUnitId)) {
+
 				hmdDevice = device;
 				console.log('Using HMD Device:', hmdDevice.deviceName);
 
@@ -225,13 +227,15 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 		return hmdDevice;
 	};
 
-	this.render = function ( leftScene, rightScene, camera ) {
+	this.render = function ( leftScene, rightScene, camera, renderTarget, forceClear ) {
 		var w, h;
 
 		if ( rightScene && rightScene instanceof THREE.Scene ) {
 			rightScene.updateMatrixWorld();
 		} else {
-			if ( !camera && rightScene && rightScene.aspect ) {
+			if ( (!camera || camera instanceof THREE.WebGLRenderTarget) && rightScene && rightScene.aspect ) {
+				forceClear = renderTarget;
+				renderTarget = camera;
 				camera = rightScene;
 			}
 			rightScene = leftScene;
@@ -260,7 +264,7 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 		if (!vrMode && !vrPreview) {
 			renderer.enableScissorTest( false );
 			renderer.setViewport( 0, 0, w, h );
-			renderer.render( leftScene, camera );
+			renderer.render( leftScene, camera, renderTarget, forceClear );
 			return;
 		}
 
@@ -304,17 +308,24 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 
 		renderer.enableScissorTest(true);
 
-		renderer.setViewport( 0, 0, w, h );
-		renderer.clear();
 		w /= 2;
 
+		if (renderTarget) {
+			renderer.setRenderTarget(renderTarget);
+		}
 		renderer.setScissor( 0, 0, w, h );
 		renderer.setViewport( 0, 0, w, h );
-		renderer.render( leftScene, cameraLeft );
+		renderer.render( leftScene, cameraLeft, renderTarget, forceClear );
 
 		renderer.setScissor( w, 0, w, h );
 		renderer.setViewport( w, 0, w, h );
-		renderer.render( rightScene, cameraRight );
+		renderer.render( rightScene, cameraRight, renderTarget, forceClear );
+
+		//reset viewport, scissor
+		w *= 2;
+		renderer.setViewport( 0, 0, w, h );
+		renderer.setScissor( 0, 0, w, h );
+		renderer.enableScissorTest( false );
 	};
 
 	this.scan();

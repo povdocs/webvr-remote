@@ -323,6 +323,23 @@
 			requestPointerLock,
 			exitPointerLock;
 
+		function scanHMD() {
+			var hmd,
+				timeout = 1000;
+
+			vrEffect.scan();
+			vrControls.scan();
+
+			hmd = vrEffect.hmd();
+
+			if (hmd) {
+				if (hmd.deviceId !== 'debug-0') {
+					timeout = 5000;
+				}
+				setTimeout(scanHMD, timeout);
+			}
+		}
+
 		function getBoundingBox(node) {
 			var boundingBox,
 				position = new THREE.Vector3();
@@ -371,7 +388,7 @@
 		function resize() {
 			camera.aspect = window.innerWidth / window.innerHeight;
 			camera.updateProjectionMatrix();
-			//todo: renderer.setSize(width, height);
+			renderer.setSize(window.innerWidth, window.innerHeight);
 		}
 
 		function render() {
@@ -578,13 +595,16 @@
 				vrEffect.requestFullScreen();
 			}
 		}, false);
+
 		setTimeout(function () {
 			if (vrControls.mode()) {
 				vrButton.disabled = false;
+				scanHMD();
 			} else {
 				recenterPointer();
 			}
 		}, 1);
+
 		window.addEventListener('deviceorientation', function deviceOrientation(event) {
 			if (typeof event.gamma === 'number') {
 				vrButton.disabled = false;

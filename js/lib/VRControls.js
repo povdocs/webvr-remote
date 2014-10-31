@@ -12,11 +12,15 @@ THREE.VRControls = function ( object ) {
 
 	var mode = '';
 
+	var vrBrowser = navigator.getVRDevices || navigator.mozGetVRDevices;
+
 	function gotVRDevices( devices ) {
 		var vrInput;
 		var error;
 		for ( var i = 0; i < devices.length; ++i ) {
-			if ( devices[i] instanceof PositionSensorVRDevice ) {
+			if ( devices[i] instanceof PositionSensorVRDevice &&
+					( !sensorDevice || devices[i].hardwareUnitId !== sensorDevice.hardwareUnitId ) ) {
+
 				sensorDevice = devices[i];
 				console.log('Using Sensor Device:', sensorDevice.deviceName);
 
@@ -87,14 +91,20 @@ THREE.VRControls = function ( object ) {
 		return mode;
 	};
 
+	this.scan = function () {
+		if ( navigator.getVRDevices ) {
+			navigator.getVRDevices().then( gotVRDevices );
+		} else if ( navigator.mozGetVRDevices ) {
+			navigator.mozGetVRDevices( gotVRDevices );
+		}
+	};
+
 	//todo: connect/disconnect methods
 	//todo: method to query orientation/position without changing object
 	//todo: work without an object
 
-	if ( navigator.getVRDevices ) {
-		navigator.getVRDevices().then( gotVRDevices );
-	} else if ( navigator.mozGetVRDevices ) {
-		navigator.mozGetVRDevices( gotVRDevices );
+	if ( vrBrowser ) {
+		this.scan();
 	} else if ( "DeviceOrientationEvent" in window && THREE.DeviceOrientationControls) {
 		//device orientation
 		window.addEventListener( "deviceorientation", deviceOrientationChange, false );
