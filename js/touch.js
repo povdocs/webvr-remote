@@ -259,6 +259,8 @@
 					});
 				}
 			}
+
+			evt.preventDefault();
 		}, true);
 
 		window.addEventListener('touchend', function (evt) {
@@ -276,6 +278,8 @@
 				moved = false;
 				multiTouch = false;
 			}
+
+			evt.preventDefault();
 		}, true);
 
 		window.addEventListener('touchcancel', function (evt) {
