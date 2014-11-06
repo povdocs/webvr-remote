@@ -185,8 +185,8 @@
 		unGrabObject();
 
 		grabbedObject = obj;
-		grabbedObject.quaternion.copy(grabQuat);
-		grabbedObject.rotateY(offsetAngle);
+		grabbedObject.rotation.set(0, offsetAngle, 0);
+		grabbedObject.quaternion.multiply(grabQuat);
 		updatePointer();
 		pointer.visible = false;
 	}
@@ -225,9 +225,6 @@
 
 			orientationQuaternion.setFromEuler(euler);
 
-			// camera looks out the back of the device, not the top
-			//orientationQuaternion.multiply(q1);
-
 			pointerVector.set(0, 0, -1).applyQuaternion(orientationQuaternion);
 			pointerVector.applyAxisAngle(yAxis, offsetAngle);
 
@@ -237,15 +234,11 @@
 				pointerLon *= -1;
 			}
 
-			//grabQuat.copy(alignQuaternion);
 			grabQuat.copy(orientationQuaternion);
 
-			//euler.set(-beta, alpha, gamma, 'YXZ');
-			//grabQuat.setFromEuler(euler);
-
 			if (grabbedObject) {
-				grabbedObject.quaternion.copy(grabQuat);
-				grabbedObject.rotateY(offsetAngle);
+				grabbedObject.rotation.set(0, offsetAngle, 0);
+				grabbedObject.quaternion.multiply(grabQuat);
 			} else {
 				updatePointer();
 			}
