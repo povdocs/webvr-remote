@@ -505,13 +505,13 @@
 		pickTargets.push(floor);
 
 		loader = new THREE.OBJMTLLoader();
-		loader.load( 'models/skull.obj', 'models/skull.mtl', function ( object ) {
+		loader.load( 'models/statuehead.obj', 'models/statuehead.mtl', function ( object ) {
 			recenterCompoundObject(object);
 			object.position.y = initialCameraPosition.y;
 
 			object.position.z = 4;
 			object.position.x = 2;
-			object.scale.set(0.2, 0.2, 0.2);
+			object.scale.set(0.8, 0.8, 0.8);
 			object.rotateY(Math.PI);
 			scene.add( object );
 			objects.push(object);
