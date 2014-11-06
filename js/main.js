@@ -185,8 +185,8 @@
 		unGrabObject();
 
 		grabbedObject = obj;
-		grabbedObject.quaternion.copy(grabQuat);
-		grabbedObject.rotateY(offsetAngle);
+		grabbedObject.rotation.set(0, offsetAngle, 0);
+		grabbedObject.quaternion.multiply(grabQuat);
 		updatePointer();
 		pointer.visible = false;
 	}
@@ -225,9 +225,6 @@
 
 			orientationQuaternion.setFromEuler(euler);
 
-			// camera looks out the back of the device, not the top
-			//orientationQuaternion.multiply(q1);
-
 			pointerVector.set(0, 0, -1).applyQuaternion(orientationQuaternion);
 			pointerVector.applyAxisAngle(yAxis, offsetAngle);
 
@@ -237,15 +234,11 @@
 				pointerLon *= -1;
 			}
 
-			//grabQuat.copy(alignQuaternion);
 			grabQuat.copy(orientationQuaternion);
 
-			//euler.set(-beta, alpha, gamma, 'YXZ');
-			//grabQuat.setFromEuler(euler);
-
 			if (grabbedObject) {
-				grabbedObject.quaternion.copy(grabQuat);
-				grabbedObject.rotateY(offsetAngle);
+				grabbedObject.rotation.set(0, offsetAngle, 0);
+				grabbedObject.quaternion.multiply(grabQuat);
 			} else {
 				updatePointer();
 			}
@@ -505,13 +498,13 @@
 		pickTargets.push(floor);
 
 		loader = new THREE.OBJMTLLoader();
-		loader.load( 'models/skull.obj', 'models/skull.mtl', function ( object ) {
+		loader.load( 'models/statuehead.obj', 'models/statuehead.mtl', function ( object ) {
 			recenterCompoundObject(object);
 			object.position.y = initialCameraPosition.y;
 
 			object.position.z = 4;
 			object.position.x = 2;
-			object.scale.set(0.2, 0.2, 0.2);
+			object.scale.set(0.8, 0.8, 0.8);
 			object.rotateY(Math.PI);
 			scene.add( object );
 			objects.push(object);
