@@ -140,6 +140,10 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 				hmdDevice = device;
 				console.log('Using HMD Device:', hmdDevice.deviceName);
 
+				if (hmdDevice.setTimewarp) {
+					hmdDevice.setTimewarp(false);
+				}
+
 				eyeOffsetLeft = hmdDevice.getEyeTranslation('left');
 				//cameraLeft.position.add(eyeOffsetLeft);
 
