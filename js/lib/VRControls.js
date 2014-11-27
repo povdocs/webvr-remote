@@ -59,7 +59,12 @@ THREE.VRControls = function ( object ) {
 			vrState = sensorDevice.getState();
 			if ( vrState ) {
 				object.quaternion.copy( vrState.orientation );
-				object.position.copy( vrState.position );
+
+				if ( vrState.position ) {
+					// vrState.position is null if using DK1 or if DK2 camera is not plugged in
+					object.position.copy( vrState.position );
+				}
+
 				object.updateMatrixWorld();
 			}
 		} else if (deviceControls && deviceControls.deviceOrientation.gamma !== undefined) {
