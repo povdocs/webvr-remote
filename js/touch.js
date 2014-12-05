@@ -214,7 +214,8 @@
 			touchX,
 			touchY,
 			multiTouch = false,
-			startOrientation = 0;
+			startOrientation = 0,
+			lastTouch = 0;
 
 		window.addEventListener('touchstart', function (evt) {
 			if (evt.touches.length > 1) {
@@ -266,9 +267,12 @@
 		window.addEventListener('touchend', function (evt) {
 			if (!evt.touches.length) {
 				if (!moved && !multiTouch && connection && connection.open) {
-					connection.send({
-						action: 'click'
-					});
+					if (Date.now() - lastTouch >= 300) {
+						connection.send({
+							action: 'click'
+						});
+						lastTouch = Date.now();
+					}
 				} else if (moved && connection && connection.open) {
 					connection.send({
 						action: 'stop'
