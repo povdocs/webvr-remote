@@ -1,4 +1,4 @@
-THREE.VRControls = function ( object ) {
+THREE.VRControls = function ( object, options ) {
 
 	var self = this;
 
@@ -14,14 +14,22 @@ THREE.VRControls = function ( object ) {
 
 	var vrBrowser = navigator.getVRDevices || navigator.mozGetVRDevices;
 
-	function gotVRDevices( devices ) {
-		var vrInput;
-		var error;
-		for ( var i = 0; i < devices.length; ++i ) {
-			if ( devices[i] instanceof PositionSensorVRDevice &&
-					( !sensorDevice || devices[i].hardwareUnitId !== sensorDevice.hardwareUnitId ) ) {
+	var poll = options && options.poll || 1000;
+	var pollTimeout;
 
-				sensorDevice = devices[i];
+	function gotVRDevices( devices ) {
+		var i,
+			device;
+
+		for ( i = 0; i < devices.length; ++i ) {
+			device = devices[i];
+			if ( devices[i] instanceof PositionSensorVRDevice ) {
+
+				if ( sensorDevice && devices[i].hardwareUnitId === sensorDevice.hardwareUnitId ) {
+					break;
+				}
+
+				sensorDevice = device;
 				console.log('Using Sensor Device:', sensorDevice.deviceName);
 
 				if ( sensorDevice.zeroSensor ) {
@@ -32,8 +40,18 @@ THREE.VRControls = function ( object ) {
 				self.zeroSensor();
 
 				mode = 'hmd';
+
+				self.dispatchEvent( {
+					type: "devicechange"
+				} );
+
 				break; // We keep the first we encounter
 			}
+		}
+
+		if (poll) {
+			clearTimeout(pollTimeout);
+			setTimeout(self.scan, poll);
 		}
 	}
 
@@ -46,21 +64,27 @@ THREE.VRControls = function ( object ) {
 			if (!this.freeze) {
 				deviceControls.update();
 			}
+
+			self.dispatchEvent( {
+				type: "devicechange"
+			} );
 		}
 	}
 
 	this.update = function() {
 		// Applies head rotation from sensor data.
-		if (this.freeze) {
+		if (self.freeze) {
 			return;
 		}
 
 		if ( sensorDevice ) {
 			vrState = sensorDevice.getState();
 			if ( vrState ) {
-				object.quaternion.copy( vrState.orientation );
+				if ( vrState.orientation && vrState.hasOrientation !== false ) {
+					object.quaternion.copy( vrState.orientation );
+				}
 
-				if ( vrState.position ) {
+				if ( vrState.position && vrState.hasPosition !== false ) {
 					// vrState.position is null if using DK1 or if DK2 camera is not plugged in
 					object.position.copy( vrState.position );
 				}
@@ -85,8 +109,11 @@ THREE.VRControls = function ( object ) {
 	//zeros only rotation on Y axis
 	//todo: find out if it zeros out position. need a DK2 to test
 	this.zeroSensor = function () {
+		if (sensorDevice && sensorDevice.zeroSensor) {
+			sensorDevice.zeroSensor();
+		}
 		zeroAngle = object.rotation.y;
-		this.update();
+		self.update();
 	};
 
 	this.freeze = false;
@@ -115,3 +142,5 @@ THREE.VRControls = function ( object ) {
 		window.addEventListener( "deviceorientation", deviceOrientationChange, false );
 	}
 };
+
+THREE.VRControls.prototype = Object.create( THREE.EventDispatcher.prototype );
