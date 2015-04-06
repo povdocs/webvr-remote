@@ -2,7 +2,7 @@
  * @author bchirls / http://bchirls.com/
  */
 
-THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
+THREE.VRStereoEffect = function ( renderer, fullScreenElement, options ) {
 
 	// internals
 	var self = this;
@@ -12,7 +12,8 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 	var hmdDevice;
 	var vrMode;
 	var vrPreview = false;
-	var eyeOffsetLeft, eyeOffsetRight;
+	var eyeOffsetLeft = new THREE.Vector3();
+	var eyeOffsetRight = new THREE.Vector3();
 
 	var position = new THREE.Vector3();
 	var quaternion = new THREE.Quaternion();
@@ -20,14 +21,26 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 
 	var cameraLeft = new THREE.PerspectiveCamera();
 	var cameraRight = new THREE.PerspectiveCamera();
+	var leftRenderRect = {
+		x: 0, y: 0, width: 0, height: 0
+	};
+	var rightRenderRect = {
+		x: 0, y: 0, width: 0, height: 0
+	};
+
+	var near = 2;
+	var far = 40000;
 
 	var requestFullscreen;
 	var fullScreenParam = {
 		vrDisplay: null
 	};
-	var fsElementKey;
+	var fovScale;
 
 	var RADIANS = Math.PI / 180;
+
+	var poll = options && options.poll || 1000;
+	var pollTimeout;
 
 	function perspectiveMatrixFromVRFieldOfView(fov, zNear, zFar) {
 		var outMat = new THREE.Matrix4(),
@@ -67,8 +80,8 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 		var w, h;
 
 		if (hmdDevice && vrMode) {
-			w = hmdWidth / Math.pow(window.devicePixelRatio || 1, 2);
-			h = hmdHeight / Math.pow(window.devicePixelRatio || 1, 2);
+			w = hmdWidth;// / Math.pow(window.devicePixelRatio || 1, 2);
+			h = hmdHeight;// / Math.pow(window.devicePixelRatio || 1, 2);
 		} else {
 			w = width || renderer.domElement.offsetWidth || window.innerWidth;
 			h = height || renderer.domElement.offsetHeight || window.innerHeight;
@@ -77,9 +90,15 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 		renderer.setSize(w, h);
 	}
 
-	function resizeFOV(amount) {
+	function updateProjection() {
 		var fovLeft,
 			fovRight,
+
+			leftEyeParams,
+			rightEyeParams,
+			leftEyeRect,
+			rightEyeRect,
+
 			leftEyeViewport,
 			rightEyeViewport;
 
@@ -87,45 +106,78 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 			return;
 		}
 
-		if (amount && hmdDevice.setFieldOfView) {
-			fovScale += amount;
-			fovScale = Math.max(0.1, fovScale);
+		// if (amount && hmdDevice.setFieldOfView) {
+		// 	fovScale += amount;
+		// 	fovScale = Math.max(0.1, fovScale);
 
-			fovLeft = hmdDevice.getRecommendedEyeFieldOfView('left');
+		// 	fovLeft = hmdDevice.getRecommendedEyeFieldOfView('left');
 
-			fovLeft.upDegrees *= fovScale;
-			fovLeft.downDegrees *= fovScale;
-			fovLeft.leftDegrees *= fovScale;
-			fovLeft.rightDegrees *= fovScale;
+		// 	fovLeft.upDegrees *= fovScale;
+		// 	fovLeft.downDegrees *= fovScale;
+		// 	fovLeft.leftDegrees *= fovScale;
+		// 	fovLeft.rightDegrees *= fovScale;
 
-			fovRight = hmdDevice.getRecommendedEyeFieldOfView('right');
-			fovRight.upDegrees *= fovScale;
-			fovRight.downDegrees *= fovScale;
-			fovRight.leftDegrees *= fovScale;
-			fovRight.rightDegrees *= fovScale;
+		// 	fovRight = hmdDevice.getRecommendedEyeFieldOfView('right');
+		// 	fovRight.upDegrees *= fovScale;
+		// 	fovRight.downDegrees *= fovScale;
+		// 	fovRight.leftDegrees *= fovScale;
+		// 	fovRight.rightDegrees *= fovScale;
 
-			hmdDevice.setFieldOfView(fovLeft, fovRight);
-		}
+		// 	hmdDevice.setFieldOfView(fovLeft, fovRight);
+		// }
 
-		if (hmdDevice.getRecommendedEyeRenderRect) {
+		if (hmdDevice.getEyeParameters) {
+			leftEyeParams = hmdDevice.getEyeParameters('left');
+			rightEyeParams = hmdDevice.getEyeParameters('right');
+			leftEyeRect = leftEyeParams.renderRect;
+			rightEyeRect = rightEyeParams.renderRect;
+
+			hmdWidth = rightEyeRect.x + rightEyeRect.width;
+			hmdHeight = Math.max(leftEyeRect.y + leftEyeRect.height, rightEyeRect.y + rightEyeRect.height);
+
+			fovLeft = leftEyeParams.currentFieldOfView;
+			fovRight = rightEyeParams.currentFieldOfView;
+
+			hmdDevice.setFieldOfView(fovLeft, fovRight, near, far);
+
+			eyeOffsetLeft.copy(leftEyeParams.eyeTranslation);
+			eyeOffsetRight.copy(rightEyeParams.eyeTranslation);
+
+			leftRenderRect = leftEyeParams.renderRect;
+			rightRenderRect = rightEyeParams.renderRect;
+		} else if (hmdDevice.getRecommendedEyeRenderRect) {
 			leftEyeViewport = hmdDevice.getRecommendedEyeRenderRect('left');
 			rightEyeViewport = hmdDevice.getRecommendedEyeRenderRect('right');
+
 			hmdWidth = leftEyeViewport.width + rightEyeViewport.width;
 			hmdHeight = Math.max(leftEyeViewport.height, rightEyeViewport.height);
+
+			if (hmdDevice.getCurrentEyeFieldOfView) {
+				fovLeft = hmdDevice.getCurrentEyeFieldOfView('left');
+				fovRight = hmdDevice.getCurrentEyeFieldOfView('right');
+			} else {
+				fovLeft = hmdDevice.getRecommendedEyeFieldOfView('left');
+				fovRight = hmdDevice.getRecommendedEyeFieldOfView('right');
+			}
+
+			eyeOffsetLeft.copy(hmdDevice.getEyeTranslation('left'));
+			eyeOffsetRight.copy(hmdDevice.getEyeTranslation('right'));
+
+			leftRenderRect.x = leftEyeViewport.left;
+			leftRenderRect.y = leftEyeViewport.top;
+			leftRenderRect.width = leftEyeViewport.width;
+			leftRenderRect.height = leftEyeViewport.height;
+
+			rightRenderRect.x = rightEyeViewport.left;
+			rightRenderRect.y = rightEyeViewport.top;
+			rightRenderRect.width = rightEyeViewport.width;
+			rightRenderRect.height = rightEyeViewport.height;
 		}
 
 		resize();
 
-		if (hmdDevice.getCurrentEyeFieldOfView) {
-			fovLeft = hmdDevice.getCurrentEyeFieldOfView('left');
-			fovRight = hmdDevice.getCurrentEyeFieldOfView('right');
-		} else {
-			fovLeft = hmdDevice.getRecommendedEyeFieldOfView('left');
-			fovRight = hmdDevice.getRecommendedEyeFieldOfView('right');
-		}
-
-		cameraLeft.projectionMatrix = perspectiveMatrixFromVRFieldOfView(fovLeft, 1, 5000);
-		cameraRight.projectionMatrix = perspectiveMatrixFromVRFieldOfView(fovRight, 1, 5000);
+		cameraLeft.projectionMatrix = perspectiveMatrixFromVRFieldOfView(fovLeft, near, far);
+		cameraRight.projectionMatrix = perspectiveMatrixFromVRFieldOfView(fovRight, near, far);
 	}
 
 	function gotVRDevices(devices) {
@@ -134,8 +186,11 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 
 		for (i = 0; i < devices.length; i++) {
 			device = devices[i];
-			if (device instanceof HMDVRDevice &&
-					(!hmdDevice || devices[i].hardwareUnitId !== hmdDevice.hardwareUnitId)) {
+			if ( device instanceof HMDVRDevice ) {
+
+				if ( hmdDevice && device.hardwareUnitId === hmdDevice.hardwareUnitId ) {
+					break;
+				}
 
 				hmdDevice = device;
 				console.log('Using HMD Device:', hmdDevice.deviceName);
@@ -144,28 +199,32 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 					hmdDevice.setTimewarp(false);
 				}
 
-				eyeOffsetLeft = hmdDevice.getEyeTranslation('left');
-				//cameraLeft.position.add(eyeOffsetLeft);
-
-				eyeOffsetRight = hmdDevice.getEyeTranslation('right');
-				//cameraRight.position.add(eyeOffsetRight);
-
-				resizeFOV(0);
+				updateProjection();
 
 				fullScreenParam.vrDisplay = hmdDevice;
+
+				self.dispatchEvent( {
+					type: "devicechange"
+				} );
+
 				break;
 			}
+		}
+
+		if (poll) {
+			clearTimeout(pollTimeout);
+			setTimeout(self.scan, poll);
 		}
 	}
 
 	function onFullscreenChange() {
 		if (!document.webkitFullscreenElement &&
 				!document.mozFullScreenElement &&
-				!document.msFullScreenElement) {
+				!document.msFullscreenElement) {
 			vrMode = false;
 		}
 
-		resize();
+		updateProjection();
 
 		self.dispatchEvent( {
 			type: "fullscreenchange"
@@ -189,9 +248,11 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 	if (requestFullscreen) {
 		requestFullscreen = requestFullscreen.bind(fullScreenElement, fullScreenParam);
 	}
+
+	document.addEventListener('fullscreenchange', onFullscreenChange, false);
 	document.addEventListener('webkitfullscreenchange', onFullscreenChange, false);
 	document.addEventListener('mozfullscreenchange', onFullscreenChange, false);
-	document.addEventListener('msfullscreenchange', onFullscreenChange, false);
+	document.addEventListener('MSFullscreenChange', onFullscreenChange, false);
 
 	//todo: method for adjusting HMD FOV
 
@@ -205,8 +266,12 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 
 	this.requestFullScreen = function () {
 		vrMode = true;
-		resize();
 		requestFullscreen();
+	};
+
+	this.exit = function () {
+		vrMode = false;
+		vrPreview = false;
 	};
 
 	this.setSize = function ( w, h ) {
@@ -235,9 +300,9 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 		var w, h;
 
 		if ( rightScene && rightScene instanceof THREE.Scene ) {
-			rightScene.updateMatrixWorld();
+			//rightScene.updateMatrixWorld();
 		} else {
-			if ( (!camera || camera instanceof THREE.WebGLRenderTarget) && rightScene && rightScene.aspect ) {
+			if ( (!camera || camera instanceof THREE.WebGLRenderTarget) && rightScene instanceof THREE.Camera ) {
 				forceClear = renderTarget;
 				renderTarget = camera;
 				camera = rightScene;
@@ -245,7 +310,7 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 			rightScene = leftScene;
 		}
 
-		leftScene.updateMatrixWorld();
+		//leftScene.updateMatrixWorld();
 
 		if ( camera.parent === undefined ) {
 			camera.updateMatrixWorld();
@@ -253,8 +318,8 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 
 		w = width || renderer.domElement.width;
 		h = height || renderer.domElement.height;
-		w /= window.devicePixelRatio || 1;
-		h /= window.devicePixelRatio || 1;
+		// w /= window.devicePixelRatio || 1;
+		// h /= window.devicePixelRatio || 1;
 
 		/*
 		todo: make this work when CSS VR Rendering is fixed
@@ -268,7 +333,7 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 		if (!vrMode && !vrPreview) {
 			renderer.enableScissorTest( false );
 			renderer.setViewport( 0, 0, w, h );
-			renderer.render( leftScene, camera, renderTarget, forceClear );
+			renderer.render( leftScene, camera, renderTarget, true );
 			return;
 		}
 
@@ -312,7 +377,7 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 
 		renderer.enableScissorTest(true);
 
-		w /= 2;
+		w = renderer.context.drawingBufferWidth / 2;
 
 		if (renderTarget) {
 			renderer.setRenderTarget(renderTarget);
@@ -331,6 +396,32 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement ) {
 		renderer.setScissor( 0, 0, w, h );
 		renderer.enableScissorTest( false );
 	};
+
+	Object.defineProperty(this, 'near', {
+		get: function () {
+			return near;
+		},
+		set: function (val) {
+			val = parseFloat(val);
+			if (val && !isNaN(val)) {
+				near = Math.max(0, val);
+				updateProjection();
+			}
+		}
+	});
+
+	Object.defineProperty(this, 'far', {
+		get: function () {
+			return far;
+		},
+		set: function (val) {
+			val = parseFloat(val);
+			if (val && !isNaN(val)) {
+				far = Math.max(0, val);
+				updateProjection();
+			}
+		}
+	});
 
 	this.scan();
 	resize();
