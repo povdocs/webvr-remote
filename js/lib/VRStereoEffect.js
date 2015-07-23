@@ -103,6 +103,8 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement, options ) {
 			rightEyeViewport;
 
 		if (!hmdDevice) {
+			cameraLeft.fov = 80;
+			cameraRight.fov = 80;
 			return;
 		}
 
@@ -196,7 +198,7 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement, options ) {
 				console.log('Using HMD Device:', hmdDevice.deviceName);
 
 				if (hmdDevice.setTimewarp) {
-					hmdDevice.setTimewarp(false);
+					//hmdDevice.setTimewarp(false);
 				}
 
 				updateProjection();
@@ -341,7 +343,7 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement, options ) {
 
 		if (!hmdDevice) {
 			// left
-			cameraLeft.fov = camera.fov;
+			//cameraLeft.fov = camera.fov;
 			cameraLeft.aspect = 0.5 * camera.aspect;
 			cameraLeft.near = camera.near;
 			cameraLeft.far = camera.far;
@@ -349,7 +351,7 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement, options ) {
 
 			// right
 
-			cameraRight.fov = camera.fov;
+			// cameraRight.fov = camera.fov;
 			cameraRight.aspect = 0.5 * camera.aspect;
 			cameraRight.near = camera.near;
 			cameraRight.far = camera.far;
@@ -382,13 +384,28 @@ THREE.VRStereoEffect = function ( renderer, fullScreenElement, options ) {
 		if (renderTarget) {
 			renderer.setRenderTarget(renderTarget);
 		}
-		renderer.setScissor( 0, 0, w, h );
-		renderer.setViewport( 0, 0, w, h );
-		renderer.render( leftScene, cameraLeft, renderTarget, forceClear );
 
+		rightScene.traverseVisible(function (obj) {
+			if (obj.material && obj.material.map) {
+				if (obj.userData.stereo === 'vertical') {
+					obj.material.map.offset.set(0, 0.5);
+				} else if (obj.userData.stereo) {
+					obj.material.map.offset.set(0.5, 0);
+				}
+			}
+		});
 		renderer.setScissor( w, 0, w, h );
 		renderer.setViewport( w, 0, w, h );
 		renderer.render( rightScene, cameraRight, renderTarget, forceClear );
+
+		leftScene.traverseVisible(function (obj) {
+			if (obj.userData.stereo && obj.material && obj.material.map) {
+				obj.material.map.offset.set(0, 0);
+			}
+		});
+		renderer.setScissor( 0, 0, w, h );
+		renderer.setViewport( 0, 0, w, h );
+		renderer.render( leftScene, cameraLeft, renderTarget, forceClear );
 
 		//reset viewport, scissor
 		w *= 2;
